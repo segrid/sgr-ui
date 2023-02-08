@@ -218,6 +218,8 @@ The following flags are supported by `selenoid-ui` command:
     	data refresh period, e.g. 5s or 1m (default 5s)
   -selenoid-uri string
     	selenoid uri to fetch data from (default "http://localhost:4444")
+  -segrid-uri string
+    	segrid router uri to fetch data from (default "http://localhost:8085/segrid")
   -status-uri string
     	status uri to fetch data from
   -timeout duration
