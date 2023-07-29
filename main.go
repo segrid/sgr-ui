@@ -149,6 +149,7 @@ func init() {
 	flag.StringVar(&listen, "listen", ":8080", "host and port to listen on")
 	flag.StringVar(&selenoidUri, "selenoid-uri", "http://localhost:4444", "selenoid uri to fetch data from")
 	flag.StringVar(&webdriverUriString, "webdriver-uri", "", "webdriver uri used to create new sessions")
+	flag.StringVar(&webdriverUriString, "segrid-uri", "", "SeGrid uri used to auto scale instances")
 	flag.StringVar(&statusUriString, "status-uri", "", "status uri to fetch data from")
 	flag.StringVar(&allowedOrigin, "allowed-origin", "", "comma separated list of allowed Origin headers (use * to allow all)")
 	flag.StringVar(&users, "users", "", "htpasswd file path containing users information")
