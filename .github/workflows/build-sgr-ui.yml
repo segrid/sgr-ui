@@ -1,0 +1,80 @@
+name: build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - latest
+
+env:
+  BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+  AWS_ECR_REPO:   public.ecr.aws/orienlabs
+  AZURE_ECR_REPO: orienlabs.azurecr.io
+  IMAGE_NAME:     sgr-ui
+
+jobs:
+  selenoid-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set Golang
+        uses: actions/setup-go@v4
+        with:
+          go-version: ~1.20.4
+
+      - uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 12.x
+
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "::set-output name=dir::$(yarn cache dir)"
+
+      - uses: actions/cache@v3
+        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+      - name: Test
+        run: ci/test.sh
+
+      - name: Build
+        run: ci/build.sh
+
+      
+      - name: Build Docker Image and Push to ECR
+        run: |
+          echo "Branch name is $BRANCH_NAME"
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set default.region us-east-1
+          export DOCKER_BUILDKIT=0
+          export COMPOSE_DOCKER_CLI_BUILD=0
+          docker build -t $AWS_ECR_REPO/$IMAGE_NAME:$BRANCH_NAME -t $AZURE_ECR_REPO/$IMAGE_NAME:$BRANCH_NAME .
+          aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/orienlabs
+          docker push $AWS_ECR_REPO/$IMAGE_NAME:$BRANCH_NAME
+  
+      - name: 'Login via Azure CLI'
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+  
+      - name: 'Login to orienlabs.azurecr.io'
+        uses: azure/docker-login@v1
+        with:
+          login-server: orienlabs.azurecr.io
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+      - name: Push Image to Azure Registry
+        run: |
+          docker push $AZURE_ECR_REPO/$IMAGE_NAME:$BRANCH_NAME
